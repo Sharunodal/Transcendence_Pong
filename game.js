@@ -15,25 +15,26 @@ const engine = new BABYLON.Engine(canvas, true);
 const scene = new BABYLON.Scene(engine);
 
 // Camera
-const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 0, -15), scene);
-camera.setTarget(BABYLON.Vector3.Zero());
-camera.rotation = new BABYLON.Vector3(0, 0, 0);
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 15, 0), scene);
+camera.setTarget(new BABYLON.Vector3(0, 0, 0));
 camera.attachControl(canvas, false);
-camera.inputs.clear(); // disable camera input
+camera.inputs.clear();
 
 // Lighting
-const ambient = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
-ambient.intensity = 0.8;
-ambient.diffuse = new BABYLON.Color3(1, 0.9, 0.6);
+const hemi = new BABYLON.HemisphericLight(
+  "hemisphericLight",
+  new BABYLON.Vector3(0, 1, 0),  // pointing “up”
+  scene
+);
+hemi.diffuse     = BABYLON.Color3.FromHexString("#FFFFFF");
+hemi.groundColor = BABYLON.Color3.FromHexString("#888888");
+hemi.intensity   = 0.8;
 
-const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(0, -0.2, 1), scene);
-sun.position = new BABYLON.Vector3(0, 0, -45);
-sun.intensity = 0.8;
-sun.diffuse = new BABYLON.Color3(1.0, 0.9, 0.7);
-
-// enable shadows
-sun.shadowMinZ = 1;
-sun.shadowMaxZ = 100;
+//Infinite directional light
+const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(0, -1, 0), scene);
+sun.direction = new BABYLON.Vector3(0, -1, 0);
+sun.position = new BABYLON.Vector3(0, 40, 0);
+sun.intensity = 0.2;
 
 // Background
 scene.clearColor = new BABYLON.Color3.Black();
@@ -54,8 +55,8 @@ ballMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
 const ball = BABYLON.MeshBuilder.CreateSphere("ball", { diameter: 0.4 }, scene);
 ball.material = ballMaterial;
 
-const paddle1 = BABYLON.MeshBuilder.CreateBox("paddle1", { width: 0.3, height: 2, depth: 0.3 }, scene);
-const paddle2 = BABYLON.MeshBuilder.CreateBox("paddle2", { width: 0.3, height: 2, depth: 0.3 }, scene);
+const paddle1 = BABYLON.MeshBuilder.CreateBox("paddle1", { width: 0.3, height: 0.3, depth: 2 }, scene);
+const paddle2 = BABYLON.MeshBuilder.CreateBox("paddle2", { width: 0.3, height: 0.3, depth: 2 }, scene);
 paddle1.material = paddle2.material = paddleMaterial;
 
 // Mesh shadows
@@ -68,8 +69,8 @@ shadowGenerator.addShadowCaster(paddle2);
 shadowGenerator.addShadowCaster(ball);
 ball.receiveShadows = true;
 
-const wallThickness = 0.5;
-const wallDepth = 0.2;
+const wallThickness = 0.2;
+const wallDepth = 0.5;
 const fieldWidth = 100;
 
 // Walls
@@ -78,29 +79,43 @@ const wallTop = BABYLON.MeshBuilder.CreateBox("wallTop", {
   height: wallThickness,
   depth: wallDepth,
 }, scene);
-wallTop.position.y = 4.8;
-wallTop.position.z = 0;
+wallTop.position.z = 4.8;
 wallTop.material = wallMaterial;
 wallTop.receiveShadows = true;
 
 const wallBottom = wallTop.clone("wallBottom");
-wallBottom.position.y = -4.8;
+wallBottom.position.z = -4.8;
+wallBottom.material = wallMaterial;
+wallBottom.receiveShadows = true;
 
-[wallTop, wallBottom].forEach(wall => {
-  wall.material = wallMaterial;
-  wall.receiveShadows = true;
-});
+//Floor
+const floor = BABYLON.MeshBuilder.CreateGround("floor", {
+  width: fieldWidth + 2,
+  height: fieldWidth + 2,
+}, scene);
+const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+floorMat.diffuseColor  = new BABYLON.Color3(0.1, 0.1, 0.1);
+floorMat.ambientColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+floor.material = floorMat;
+floor.receiveShadows = true;
+floor.position.y = -0.15;
+
+// turn off light highlight
+for (const mat of [wallMaterial, paddleMaterial, ballMaterial, floorMat]) {
+  mat.specularColor = BABYLON.Color3.Black();
+  mat.specularPower = 1;
+}
 
 // Define movement limits for walls, clamping at controls
-const paddleHalfHeight = paddle1.getBoundingInfo().boundingBox.extendSize.y;
-const wallHalfHeight   = wallTop.getBoundingInfo().boundingBox.extendSize.y;
-const upperLimit = wallTop.position.y - wallHalfHeight - paddleHalfHeight;
-const lowerLimit = wallBottom.position.y + wallHalfHeight + paddleHalfHeight;
+const paddleHalfZ = paddle1.getBoundingInfo().boundingBox.extendSize.z;
+const wallHalfZ   = wallTop.getBoundingInfo().boundingBox.extendSize.z;
+const upperLimitZ = wallTop.position.z - wallHalfZ - paddleHalfZ;
+const lowerLimitZ = wallBottom.position.z + wallHalfZ + paddleHalfZ;
 
 // Particle texture
 const particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
 
-let vx = 0.07, vy = 0.04, s1 = 0, s2 = 0;
+let vx = 0.07, vz = 0.04, s1 = 0, s2 = 0;
 let paused = true;
 
 // UI
@@ -113,7 +128,7 @@ function resetBall() {
   paused = true;
   ball.isVisible = true;
   vx = (Math.random() < 0.5 ? -1 : 1) * 0.07;
-  vy = (Math.random() < 0.5 ? -1 : 1) * 0.04;
+  vz = (Math.random() < 0.5 ? -1 : 1) * 0.04;
 }
 
 // Flash effect on paddle hit
@@ -143,7 +158,7 @@ function spawnFlash(position) {
   const light = new BABYLON.PointLight("flashLight" + Math.random(), position.clone(), scene);
   light.diffuse = new BABYLON.Color3(1, 0.9, 0.5);
   light.intensity = 2.0;
-  light.range = 1;
+  light.range = 2;
 
   // Light fade out
   let fade = 1.0;
@@ -178,13 +193,13 @@ scene.onBeforeRenderObservable.add(() => {
   // Frame‐rate normalization
   const deltaFactor = engine.getDeltaTime() / (1000 / 60);
   const stepX       = vx * deltaFactor;
-  const stepY       = vy * deltaFactor;
-  const stepLength  = Math.hypot(stepX, stepY);
+  const stepZ       = vz * deltaFactor;
+  const stepLength  = Math.hypot(stepX, stepZ);
   if (stepLength === 0) return;
 
   // Build a swept‐sphere ray
   const origin = ball.position.clone();
-  const dir    = new BABYLON.Vector3(stepX, stepY, 0).scale(1 / stepLength);
+  const dir    = new BABYLON.Vector3(stepX, 0, stepZ).scale(1 / stepLength);
   const radius = ball.getBoundingInfo().boundingSphere.radius;
   const ray    = new BABYLON.Ray(origin, dir, stepLength + radius);
 
@@ -203,16 +218,17 @@ scene.onBeforeRenderObservable.add(() => {
 
       // reflect velocity around the surface normal
       const N   = pick.getNormal(true); // world‐space normal
-      const V   = new BABYLON.Vector3(vx, vy, 0);
+      const V   = new BABYLON.Vector3(vx, 0, vz);
       const dot = BABYLON.Vector3.Dot(V, N);
       const R   = V.subtract(N.scale(2 * dot));
-      vx = R.x; vy = R.y;
+      vx = R.x;
+      vz = R.z;
 
       spawnFlash(ball.position);
 
       // carry on the remaining distance
       const leftover = stepLength - travel;
-      const newDir   = new BABYLON.Vector3(vx, vy, 0).normalize();
+      const newDir   = new BABYLON.Vector3(vx, 0, vz).normalize();
       ball.position = ball.position.add(newDir.scale(leftover));
     } else {
       // no valid hit within this frame’s travel
@@ -230,14 +246,14 @@ scene.onBeforeRenderObservable.add(() => {
 
 // Controls
 window.addEventListener("keydown", e => {
-  if (e.key === "ArrowUp") paddle2.position.y += 0.3;
-  if (e.key === "ArrowDown") paddle2.position.y -= 0.3;
-  if (e.key === "w") paddle1.position.y += 0.3;
-  if (e.key === "s") paddle1.position.y -= 0.3;
+  if (e.key === "ArrowUp") paddle1.position.z -= 0.3;
+  if (e.key === "ArrowDown") paddle1.position.z += 0.3;
+  if (e.key === "w") paddle2.position.z -= 0.3;
+  if (e.key === "s") paddle2.position.z += 0.3;
 
-  // Clamp paddles between the walls
-  paddle1.position.y = Math.min(Math.max(paddle1.position.y, lowerLimit), upperLimit);
-  paddle2.position.y = Math.min(Math.max(paddle2.position.y, lowerLimit), upperLimit);
+  // Clamp paddles between the walls on Z
+  paddle1.position.z = Math.min(Math.max(paddle1.position.z, lowerLimitZ), upperLimitZ);
+  paddle2.position.z = Math.min(Math.max(paddle2.position.z, lowerLimitZ), upperLimitZ);
 
   if (e.code === "Space") paused = !paused;
 });
