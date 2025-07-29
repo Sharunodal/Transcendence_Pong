@@ -246,19 +246,26 @@ scene.onBeforeRenderObservable.add(() => {
     ball.position = origin.add(dir.scale(stepLength));
   }
   // Score
-  if (ball.position.x < -7.5 || ball.position.x > 7.5) {
-  const lastVx = vx, lastVz = vz;
-  ball.isVisible = false;
-  explodeBall(scene, ball, ballMaterial, lastVx, lastVz);
-  setTimeout(() => {
-    gatherBall(scene, ballMaterial, () => {
-      ball.position.set(0, 0, 0);
-      ball.isVisible = true;
-      resetBall();
-    });
-  }, 500);
-}
-});
+  if (ball.position.x < -8 || ball.position.x > 8) {
+    paused = true;
+    if (ball.position.x < -8) {
+       s2++;
+      } else {
+        s1++;
+      }
+      updateScore();
+      const lastVx = vx, lastVz = vz;
+      ball.isVisible = false;
+      explodeBall(scene, ball, ballMaterial, lastVx, lastVz);
+      setTimeout(() => {
+        gatherBall(scene, ballMaterial, () => {
+          ball.position.set(0, 0, 0);
+          ball.isVisible = true;
+          resetBall();
+        });
+      }, 500);
+    }
+  });
 
 // Controls
 window.addEventListener("keydown", e => {
