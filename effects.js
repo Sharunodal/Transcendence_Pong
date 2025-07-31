@@ -10,6 +10,7 @@
 //                                                                            //
 // ************************************************************************** //
 
+//create the shards that are used for explosion and reconstruction animations
 export function makeShard(scene, ball, ballMaterial) {
   const s = BABYLON.MeshBuilder.CreateBox("shard", {
     width: 0.1 + Math.random() * 0.1,
@@ -33,6 +34,7 @@ export function makeShard(scene, ball, ballMaterial) {
   return s;
 }
 
+//explode shards to the same direction the ball was going before reset
 export function explodeBall(scene, ball, ballMaterial, lastVx, lastVz) {
   const pieces = [];
   for (let i = 0; i < 7; i++) {
@@ -58,6 +60,7 @@ export function explodeBall(scene, ball, ballMaterial, lastVx, lastVz) {
   });
 }
 
+//reconstruction animation when the ball reappears
 export function gatherBall(scene, ballMaterial, onComplete) {
   const num = 32;
   const pieces = [];
@@ -121,4 +124,50 @@ export function gatherBall(scene, ballMaterial, onComplete) {
       }
     });
   });
+}
+
+//light flash effect when the ball hits an object
+export function spawnFlash(position, scene, warmYellow, particleTexture) {
+  const flash = new BABYLON.ParticleSystem("flash" + Math.random(), 30, scene);
+  flash.particleTexture = particleTexture;
+  flash.emitter = position.clone();
+  flash.minEmitBox = flash.maxEmitBox = BABYLON.Vector3.Zero();
+  flash.color1 = warmYellow;
+  flash.color2 = BABYLON.Color3.White();
+  flash.minSize = 0.15;
+  flash.maxSize = 0.3;
+  flash.minLifeTime = 0.15;
+  flash.maxLifeTime = 0.25;
+  flash.emitRate = 1000;
+  flash.gravity = BABYLON.Vector3.Zero();
+  flash.direction1 = new BABYLON.Vector3(-0.5, 0.3, 0.1);
+  flash.direction2 = new BABYLON.Vector3(0.5, -0.3, -0.1);
+  flash.manualEmitCount = 30;
+  flash.disposeOnStop = true;
+  flash.start();
+  setTimeout(() => flash.stop(), 100);
+
+  const light = new BABYLON.PointLight("flashLight" + Math.random(), position.clone(), scene);
+  light.diffuse = new BABYLON.Color3(1, 0.9, 0.5);
+  light.intensity = 2.0;
+  light.range = 2;
+
+  let fade = 1.0;
+  const fadeInterval = setInterval(() => {
+    fade -= 0.1;
+    light.intensity = fade * 2;
+    if (fade <= 0) {
+      light.dispose();
+      clearInterval(fadeInterval);
+    }
+  }, 30);
+
+  const paddleSound = new BABYLON.Sound("paddleHit", "https://cdn.jsdelivr.net/gh/anrisan/assets/audio/ping.mp3", scene, null, {
+    autoplay: true,
+    volume: 0.7,
+    spatialSound: true,
+    maxDistance: 10,
+    refDistance: 1,
+  });
+  paddleSound.setPosition(position);
 }
