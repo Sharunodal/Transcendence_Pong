@@ -29,7 +29,10 @@ export function createScene(canvas) {
   sun.position = new BABYLON.Vector3(0, 40, 0);
   sun.intensity = 0.2;
 
+  const glow = new BABYLON.GlowLayer("glow", scene, { blurKernelSize: 32 });
+  glow.intensity = 0.5;
+
   scene.clearColor = BABYLON.Color3.Black();
 
-  return { scene, engine, camera, sun };
+  return { scene, engine, camera, sun, glow };
 }

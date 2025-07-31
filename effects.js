@@ -127,9 +127,9 @@ export function gatherBall(scene, ballMaterial, onComplete) {
 }
 
 //light flash effect when the ball hits an object
-export function spawnFlash(position, scene, warmYellow, particleTexture) {
+export function spawnFlash(position, scene, warmYellow, flareTexture) {
   const flash = new BABYLON.ParticleSystem("flash" + Math.random(), 30, scene);
-  flash.particleTexture = particleTexture;
+  flash.particleTexture = flareTexture;
   flash.emitter = position.clone();
   flash.minEmitBox = flash.maxEmitBox = BABYLON.Vector3.Zero();
   flash.color1 = warmYellow;
@@ -170,4 +170,26 @@ export function spawnFlash(position, scene, warmYellow, particleTexture) {
     refDistance: 1,
   });
   paddleSound.setPosition(position);
+}
+
+export function flashPaddle(paddle, scene, color = new BABYLON.Color3(1, 0.5, 0)) {
+  const material = paddle.material;
+  const originalEmissive = material.emissiveColor.clone();
+
+  const anim = new BABYLON.Animation(
+    "paddleGlow",
+    "emissiveColor",
+    30,
+    BABYLON.Animation.ANIMATIONTYPE_COLOR3,
+    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+  );
+
+  anim.setKeys([
+    { frame: 0, value: originalEmissive },
+    { frame: 5, value: color },
+    { frame: 15, value: originalEmissive }
+  ]);
+
+  material.animations = [anim];
+  scene.beginAnimation(material, 0, 15, false);
 }

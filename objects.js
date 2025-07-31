@@ -17,8 +17,6 @@ export function createObjects(scene, materials) {
   const paddle1 = BABYLON.MeshBuilder.CreateBox("paddle1", { width: 0.3, height: 0.3, depth: 2 }, scene);
   const paddle2 = BABYLON.MeshBuilder.CreateBox("paddle2", { width: 0.3, height: 0.3, depth: 2 }, scene);
   paddle1.material = paddle2.material = materials.paddleMaterial;
-  paddle1.position.x = -6.5;
-  paddle2.position.x = 6.5;
 
   const wallTop = BABYLON.MeshBuilder.CreateBox("wallTop", {
     width: 100,
