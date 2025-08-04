@@ -17,17 +17,22 @@ export function createObjects(scene, materials) {
   const paddle1 = BABYLON.MeshBuilder.CreateBox("paddle1", { width: 0.3, height: 0.3, depth: 2 }, scene);
   const paddle2 = BABYLON.MeshBuilder.CreateBox("paddle2", { width: 0.3, height: 0.3, depth: 2 }, scene);
   paddle1.material = paddle2.material = materials.paddleMaterial;
+  let paddleDistance = 8;
+  paddle1.position.x = paddleDistance;
+  paddle2.position.x = -paddleDistance;
 
   const wallTop = BABYLON.MeshBuilder.CreateBox("wallTop", {
     width: 100,
     height: 0.2,
     depth: 0.5,
   }, scene);
-  wallTop.position.z = 4.8;
   wallTop.material = materials.wallMaterial;
 
   const wallBottom = wallTop.clone("wallBottom");
-  wallBottom.position.z = -4.8;
+
+  let wallDistance = 6.2;
+  wallTop.position.z = wallDistance;
+  wallBottom.position.z = -wallDistance;
 
   const floor = BABYLON.MeshBuilder.CreateGround("floor", {
     width: 102,
@@ -45,6 +50,7 @@ export function createObjects(scene, materials) {
     ball,
     paddle1,
     paddle2,
+    paddleDistance,
     wallTop,
     wallBottom,
     floor,

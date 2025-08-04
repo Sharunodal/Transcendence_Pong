@@ -10,7 +10,7 @@
 //                                                                            //
 // ************************************************************************** //
 
-import { explodeBall, gatherBall, spawnFlash, flashPaddle } from './effects.js';
+import { explodeBall, gatherBall, spawnFlash, flashPaddle, createFireTrail, updateFireTrail, resetFireTrail } from './effects.js';
 import { createScene } from './sceneSetup.js';
 import { createObjects } from './objects.js';
 import { createMaterials } from './materials.js';
@@ -19,18 +19,16 @@ const canvas = document.getElementById("renderCanvas");
 const { engine, scene, sun, glow } = createScene(canvas);
 const materials = createMaterials(scene);
 const { ballMaterial, warmYellow } = materials;
-const { ball, paddle1, paddle2, wallTop, wallBottom, floor, limits } = createObjects(scene, materials);
+const { ball, paddle1, paddle2, paddleDistance, wallTop, wallBottom, floor, limits } = createObjects(scene, materials);
 const { upperLimitZ, lowerLimitZ } = limits;
 
 const flareTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
 const flameTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flame.png", scene);
-
-let paddleDistance = 6.5;
-paddle1.position.x = paddleDistance;
-paddle2.position.x = -paddleDistance;
+createFireTrail(ball, scene, flameTexture);
+updateFireTrail(0);
 
 let score1 = 0, score2 = 0;
-let vx = 0.07, vz = 0.04;
+let vx = 0.105, vz = 0.06;
 let paused = true;
 let awaitingStart = true;
 let acceptingInput = true;
@@ -94,65 +92,12 @@ function resetBall() {
   vx = (Math.random() < 0.5 ? -1 : 1) * 0.07;
   vz = (Math.random() < 0.5 ? -1 : 1) * 0.04;
   resetPaddles();
-  updateFireTrail();
   updatePauseOverlay();
   updateStartPrompt();
-}
-
-
-let fireTrail;
-const baseRate = 50;
-const baseSize = 0.01;
-
-function createFireTrail(ball, scene, flameTexture) {
-  const fire = new BABYLON.ParticleSystem("fireTrail", 200, scene);
-
-  fire.particleTexture = flameTexture;
-  fire.emitter = ball;
-
-  fire.minEmitBox = new BABYLON.Vector3(0, 0, 0);
-  fire.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
-
-  fire.color1 = new BABYLON.Color4(1, 0.4, 0, 1);
-  fire.color2 = new BABYLON.Color4(1, 0.1, 0, 0.8);
-  fire.colorDead = new BABYLON.Color4(0, 0, 0, 0);
-
-  fire.minSize = 0.01;
-  fire.maxSize = 0.1;
-
-  fire.minLifeTime = 0.1;
-  fire.maxLifeTime = 0.25;
-
-  fire.emitRate = 50;
-
-  fire.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
-  fire.gravity = BABYLON.Vector3.Zero();
-
-  fire.direction1 = new BABYLON.Vector3(-1, 0.1, -0.1);
-  fire.direction2 = new BABYLON.Vector3(-1, -0.1, 0.1);
-
-  fire.minAngularSpeed = 0;
-  fire.maxAngularSpeed = Math.PI;
-
-  fire.minEmitPower = 0.5;
-  fire.maxEmitPower = 1.0;
-  fire.updateSpeed = 0.01;
-
-  fire.start();
-
-  return fire;
-}
-
-function updateFireTrail() {
-  if (!fireTrail) {
-    fireTrail = createFireTrail(ball, scene, flameTexture);
-  }
-  fireTrail.emitter = ball;
-  fireTrail.emitRate = baseRate + 300 * boostLevel;
-  fireTrail.minSize = baseSize + 0.05 * boostLevel;
-  fireTrail.maxSize = baseSize + 0.1 * boostLevel;
-  fireTrail.direction1 = new BABYLON.Vector3(-vx, 0.1, -vz).normalize();
-  fireTrail.direction2 = new BABYLON.Vector3(-vx, -0.1, -vz).normalize();
+  
+  boostLevel = 0;
+  resetFireTrail(ball);
+  updateFireTrail(0);
 }
 
 // Main game loop
@@ -195,24 +140,27 @@ scene.onBeforeRenderObservable.add(() => {
       const dot = BABYLON.Vector3.Dot(V, N);
       const R = V.subtract(N.scale(2 * dot));
 
-      let boost = 1.0;
+      let boostMultiplier = 1.0;
       if (pick.pickedMesh === paddle1 && boostPressed.has("paddle1")) {
-        boost *= 1.25;
+        boostMultiplier *= 1.25;
         boostLevel++;
-        updateFireTrail();
+        updateFireTrail(boostLevel);
         flashPaddle(paddle1, scene);
       } else if (pick.pickedMesh === paddle2 && boostPressed.has("paddle2")) {
-        boost *= 1.25;
+        boostMultiplier *= 1.25;
         boostLevel++;
-        updateFireTrail();
+        updateFireTrail(boostLevel);
         flashPaddle(paddle2, scene);
       }
       // Glow effect during boost
-      ballMaterial.emissiveColor = new BABYLON.Color3(1, 0.4, 0);
-      ballMaterial.emissiveIntensity = 0.05 * Math.pow(boostLevel, 2);
+      if (boostLevel > 0) {
+        ballMaterial.emissiveColor = new BABYLON.Color3(1, 0.4, 0);
+        ballMaterial.emissiveIntensity = 0.05 * Math.pow(boostLevel, 2);
+      }
 
-      vx = R.x * boost;
-      vz = R.z * boost;
+      //speed up
+      vx = R.x * boostMultiplier;
+      vz = R.z * boostMultiplier;
 
       spawnFlash(ball.position, scene, warmYellow, flareTexture);
 
@@ -229,16 +177,15 @@ scene.onBeforeRenderObservable.add(() => {
   if (ball.position.x < -paddleDistance - 1.5 || ball.position.x > paddleDistance + 1.5) {
     paused = true;
     acceptingInput = false;
+
+    resetFireTrail(ball);
+
     if (ball.position.x > paddleDistance + 1.5)
       score2++;
     else score1++;
     updateScore();
-
     const lastVx = vx, lastVz = vz;
     ball.isVisible = false;
-    
-    boostLevel = 0;
-    updateFireTrail();
 
     explodeBall(scene, ball, ballMaterial, lastVx, lastVz);
     setTimeout(() => {

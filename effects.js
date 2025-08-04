@@ -193,3 +193,56 @@ export function flashPaddle(paddle, scene, color = new BABYLON.Color3(1, 0.5, 0)
   material.animations = [anim];
   scene.beginAnimation(material, 0, 15, false);
 }
+
+let fireTrail     = null;
+
+export function createFireTrail(ball, scene, flameTexture) {
+  fireTrail = new BABYLON.GPUParticleSystem("fireTrail", { capacity:2000 }, scene);
+  fireTrail.particleTexture  = flameTexture;
+  fireTrail.emitter          = ball;
+  fireTrail.particleEmitterType = new BABYLON.SphereParticleEmitter();
+  fireTrail.particleEmitterType.radius      = 0.2;
+  fireTrail.particleEmitterType.radiusRange = 1.0;
+
+  fireTrail.color1       = new BABYLON.Color4(1,1,0,0.6);
+  fireTrail.color2       = new BABYLON.Color4(1,1,0,0.4);
+  fireTrail.colorDead    = new BABYLON.Color4(0,0,0,0);
+  fireTrail.minLifeTime  = 0.15;
+  fireTrail.maxLifeTime = 0.25;
+  fireTrail.minEmitPower = 0.1; 
+  fireTrail.maxEmitPower= 0.3;
+  fireTrail.direction1   = new BABYLON.Vector3(0,1,0);
+  fireTrail.direction2   = new BABYLON.Vector3(0,1,0);
+  fireTrail.addSizeGradient(0,0.4).addSizeGradient(1,0.01);
+  fireTrail.addColorGradient(0,   new BABYLON.Color4(1,1,0,0.6));
+  fireTrail.addColorGradient(0.7, new BABYLON.Color4(1,1,0,0.4));
+  fireTrail.addColorGradient(1.0, new BABYLON.Color4(0,0,0,0));
+  fireTrail.addVelocityGradient(0,0).addVelocityGradient(1,-0.3);
+
+  fireTrail.start();
+
+  fireTrail.emitRate = 0;
+  fireTrail.minSize  = 0;
+  fireTrail.maxSize  = 0;
+}
+
+export function updateFireTrail(boostLevel) {
+  if (!fireTrail) return;
+  if (boostLevel <= 0) {
+    fireTrail.emitRate = 0;
+    fireTrail.minSize  = 0;
+    fireTrail.maxSize  = 0;
+  } else if (boostLevel > 5){
+    fireTrail.emitRate = 50 * boostLevel - 5;
+    fireTrail.minSize  = 0.05 * boostLevel - 5;
+    fireTrail.maxSize  = 0.1 * boostLevel - 5;
+  }
+}
+
+export function resetFireTrail(ball) {
+  if (!fireTrail) return;
+  fireTrail.reset();
+  fireTrail.emitRate = 0;
+  fireTrail.minSize  = 0;
+  fireTrail.maxSize  = 0;
+}
